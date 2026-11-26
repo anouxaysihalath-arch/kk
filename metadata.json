@@ -1,0 +1,8 @@
+{
+  "name": "ຄັງອຸປະກອນ — ລະບົບສ້າງ ແລະ ຈັດການບ່ອນເກັບອຸປະກອນ",
+  "description": "ແອັບສ້າງບ່ອນເກັບອຸປະກອນ, ບັນທຶກສະຕັອກ, ຕິດຕາມການເບີກ-ຮັບຄືນ ແລະ ຈັດລະບຽບອຸປະກອນຢ່າງເປັນລະບົບ.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

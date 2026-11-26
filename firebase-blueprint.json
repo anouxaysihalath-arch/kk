@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "StorageLocation": {
+      "title": "StorageLocation",
+      "description": "A physical storage zone, cabinet, shelf, or box where equipment items are stored.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "zoneType": {
+          "type": "string",
+          "enum": ["cabinet", "shelf", "room", "box"]
+        },
+        "capacity": {
+          "type": "number"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "code", "name", "zoneType", "capacity", "description", "createdAt", "updatedAt"]
+    },
+    "EquipmentItem": {
+      "title": "EquipmentItem",
+      "description": "An equipment asset or inventory item tracked inside a storage location.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "sku": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "enum": ["tools", "it", "office", "safety", "other"]
+        },
+        "locationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "minThreshold": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "status": {
+          "type": "string",
+          "enum": ["available", "checked_out", "maintenance"]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "sku", "name", "category", "locationId", "quantity", "minThreshold", "unit", "status", "notes", "createdAt", "updatedAt"]
+    },
+    "MovementRecord": {
+      "title": "MovementRecord",
+      "description": "Immutable audit record of an equipment check-out, check-in, or stock adjustment.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "equipmentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "equipmentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actionType": {
+          "type": "string",
+          "enum": ["check_out", "check_in", "adjust"]
+        },
+        "quantityDelta": {
+          "type": "number"
+        },
+        "actorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "equipmentId", "equipmentName", "actionType", "quantityDelta", "actorName", "note", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/locations/{locationId}": {
+      "schema": { "$ref": "#/entities/StorageLocation" },
+      "description": "User-owned storage locations (cabinets, shelves, rooms, boxes)."
+    },
+    "/users/{userId}/equipment/{equipmentId}": {
+      "schema": { "$ref": "#/entities/EquipmentItem" },
+      "description": "User-owned equipment inventory records assigned to a storage location."
+    },
+    "/users/{userId}/movements/{movementId}": {
+      "schema": { "$ref": "#/entities/MovementRecord" },
+      "description": "User-owned append-only equipment movement audit logs."
+    }
+  }
+}

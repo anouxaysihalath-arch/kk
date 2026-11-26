@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidLocation(data, userId, locationId) {
+      return data.keys().hasAll(['id', 'ownerId', 'code', 'name', 'zoneType', 'capacity', 'description', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'code', 'name', 'zoneType', 'capacity', 'description', 'createdAt', 'updatedAt'])
+        && data.id == locationId
+        && isValidId(data.id)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && isValidId(data.ownerId)
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 32
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.zoneType in ['cabinet', 'shelf', 'room', 'box']
+        && (data.capacity is int || data.capacity is float) && data.capacity >= 1 && data.capacity <= 10000
+        && data.description is string && data.description.size() <= 300
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEquipment(data, userId, equipmentId) {
+      return data.keys().hasAll(['id', 'ownerId', 'sku', 'name', 'category', 'locationId', 'quantity', 'minThreshold', 'unit', 'status', 'notes', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'sku', 'name', 'category', 'locationId', 'quantity', 'minThreshold', 'unit', 'status', 'notes', 'createdAt', 'updatedAt'])
+        && data.id == equipmentId
+        && isValidId(data.id)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && isValidId(data.ownerId)
+        && data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 40
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.category in ['tools', 'it', 'office', 'safety', 'other']
+        && isValidId(data.locationId)
+        && (data.quantity is int || data.quantity is float) && data.quantity >= 0 && data.quantity <= 1000000
+        && (data.minThreshold is int || data.minThreshold is float) && data.minThreshold >= 0 && data.minThreshold <= 1000000
+        && data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 24
+        && data.status in ['available', 'checked_out', 'maintenance']
+        && data.notes is string && data.notes.size() <= 500
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMovement(data, userId, movementId) {
+      return data.keys().hasAll(['id', 'ownerId', 'equipmentId', 'equipmentName', 'actionType', 'quantityDelta', 'actorName', 'note', 'createdAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'equipmentId', 'equipmentName', 'actionType', 'quantityDelta', 'actorName', 'note', 'createdAt'])
+        && data.id == movementId
+        && isValidId(data.id)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && isValidId(data.ownerId)
+        && isValidId(data.equipmentId)
+        && data.equipmentName is string && data.equipmentName.size() >= 1 && data.equipmentName.size() <= 120
+        && data.actionType in ['check_out', 'check_in', 'adjust']
+        && (data.quantityDelta is int || data.quantityDelta is float) && data.quantityDelta >= -1000000 && data.quantityDelta <= 1000000
+        && data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 100
+        && data.note is string && data.note.size() <= 300
+        && data.createdAt is timestamp;
+    }
+
+    match /users/{userId}/locations/{locationId} {
+      allow get: if isOwner(userId) && isValidId(locationId);
+      allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+      allow create: if isOwner(userId)
+        && isValidId(locationId)
+        && isValidLocation(incoming(), userId, locationId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId)
+        && isValidId(locationId)
+        && isValidLocation(incoming(), userId, locationId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['code', 'name', 'zoneType', 'capacity', 'description', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(locationId);
+    }
+
+    match /users/{userId}/equipment/{equipmentId} {
+      allow get: if isOwner(userId) && isValidId(equipmentId);
+      allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+      allow create: if isOwner(userId)
+        && isValidId(equipmentId)
+        && isValidEquipment(incoming(), userId, equipmentId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          exists(/databases/$(database)/documents/users/$(userId)/locations/$(incoming().locationId)) ||
+          existsAfter(/databases/$(database)/documents/users/$(userId)/locations/$(incoming().locationId))
+        );
+      allow update: if isOwner(userId)
+        && isValidId(equipmentId)
+        && isValidEquipment(incoming(), userId, equipmentId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['sku', 'name', 'category', 'locationId', 'quantity', 'minThreshold', 'unit', 'status', 'notes', 'updatedAt'])
+            && (
+              exists(/databases/$(database)/documents/users/$(userId)/locations/$(incoming().locationId)) ||
+              existsAfter(/databases/$(database)/documents/users/$(userId)/locations/$(incoming().locationId))
+            )
+          ) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['quantity', 'status', 'updatedAt'])
+        );
+      allow delete: if isOwner(userId) && isValidId(equipmentId);
+    }
+
+    match /users/{userId}/movements/{movementId} {
+      allow get: if isOwner(userId) && isValidId(movementId);
+      allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+      allow create: if isOwner(userId)
+        && isValidId(movementId)
+        && isValidMovement(incoming(), userId, movementId)
+        && incoming().createdAt == request.time
+        && (
+          exists(/databases/$(database)/documents/users/$(userId)/equipment/$(incoming().equipmentId)) ||
+          existsAfter(/databases/$(database)/documents/users/$(userId)/equipment/$(incoming().equipmentId))
+        );
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
